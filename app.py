@@ -104,6 +104,10 @@ def scrape_github_contributions(username):
 
 
 def check_passion(text):
+    print('text', text)
+    # Check if bio is None or empty
+    if text is None or not text.strip():
+        return "no bio appears in profile"
     # Sample bio text
     bio = text
     # Define keywords for frontend and backend
@@ -293,7 +297,7 @@ def get_user_data(username, token):
         'PHP': language_average_dict.get('PHP', 0),
         'Go': language_average_dict.get('Go', 0),
     }
-    print(my_dict)
+    print('my dict',my_dict)
     return my_dict
 
 
@@ -349,7 +353,8 @@ def upload_file():
                 else:
                     usernames.append("Username not found")
 
-            github_token = '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'
+            #github_token = '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'
+            github_token = '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'
 
             for username in usernames:
                 print(username)
