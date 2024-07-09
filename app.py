@@ -149,7 +149,6 @@ def check_more_toward_stack(data):
         elif tech in backend_technologies:
             backend_sum += value
 
-    # print('frontend value', frontend_sum)
     # print('backend value', backend_sum)
     # Determine which development area the data is more oriented towards
     if frontend_sum > backend_sum:
