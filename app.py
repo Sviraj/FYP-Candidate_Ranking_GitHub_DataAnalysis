@@ -16,6 +16,11 @@ import csv
 import requests
 import nltk
 from nltk.tokenize import word_tokenize
+from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.utils.validation import check_is_fitted
+from skopt import BayesSearchCV
+from skopt.space import Real, Integer
 
 app = Flask(__name__)
 
@@ -41,14 +46,114 @@ print('That 142 line executed')
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# # Define Hyperparameter Grid
+# param_grid = {
+#     'n_estimators': [100, 200, 300, 400, 500],
+#     'max_depth': [10, 20, 30, 40, 50, None],
+#     'min_samples_split': [2, 5, 10],
+#     'min_samples_leaf': [1, 2, 4]
+# }
+# # Initialize and train a Random Forest Regressor
+# rf_regressor = RandomForestRegressor(random_state=42)    #n_estimators=100, random_state=42
+# #rf_regressor.fit(X_train, y_train)
+# # Initialize GridSearchCV
+# grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2)
+# # Fit GridSearchCV
+# grid_search.fit(X_train, y_train)
+# # Get best parameters
+# best_params = grid_search.best_params_
+# print("Best parameters found: ", best_params)
+# # Train final model with best parameters
+# final_model = RandomForestRegressor(**best_params, random_state=42)
+# final_model.fit(X_train, y_train)
+# # Check if the model is fitted
+# def is_model_fitted(model):
+#     try:
+#         check_is_fitted(model)
+#         return True
+#     except:
+#         return False
+# print(is_model_fitted(final_model))  # True, because the model is now fitted
+# # Evaluate the model
+# if is_model_fitted(final_model):
+#     y_pred_rf = final_model.predict(X_test)
+#     mae_rf = mean_absolute_error(y_test, y_pred_rf)
+#     r2_rf = r2_score(y_test, y_pred_rf)
+#     print(f"Random Forest Regressor MAE: {mae_rf}")
+#     print(f"Random Forest Regressor R2 Score: {r2_rf}")
+# else:
+#     print("Model is not fitted yet.")
+
+
+# Define Hyperparameter Space
+param_space = {
+    'n_estimators': Integer(100, 300),
+    'max_depth': Integer(10, 30),
+    'min_samples_split': Integer(2, 11),
+    'min_samples_leaf': Integer(1, 11)
+}
+
+# Initialize RandomForestRegressor
+rf_rf = RandomForestRegressor(random_state=42)
+
+# Initialize and Fit BayesSearchCV
+bayes_search = BayesSearchCV(estimator=rf_rf, search_spaces=param_space, n_iter=50, cv=3, n_jobs=-1, verbose=2, random_state=42)
+bayes_search.fit(X_train, y_train)
+
+# Get best parameters and train final model
+best_params = bayes_search.best_params_
+print("Best parameters found: ", best_params)
+
+# Use the best estimator from BayesSearchCV directly
+best_model = bayes_search.best_estimator_
+
+# Check if the model is fitted
+def is_model_fitted(model):
+    try:
+        check_is_fitted(model)
+        return True
+    except:
+        return False
+
+print(is_model_fitted(best_model))  # True, because the model is now fitted
+# Evaluate the model
+if is_model_fitted(best_model):
+    y_pred_rf = best_model.predict(X_test)
+    mae_rf = mean_absolute_error(y_test, y_pred_rf)
+    r2_rf = r2_score(y_test, y_pred_rf)
+    print(f"Random Forest Regressor MAE: {mae_rf}")
+    print(f"Random Forest Regressor R2 Score: {r2_rf}")
+else:
+    print("Model is not fitted yet.")
+
+
+print('That 154 line executed')
+print(X_test)
+print(y_test)
+
+# Evaluate the Random Forest Regressor
+#y_pred_rf = rf_regressor.predict(X_test)
+# y_pred_rf = final_model.predict(X_test)
+# mae_rf = mean_absolute_error(y_test, y_pred_rf)
+# r2_rf = r2_score(y_test, y_pred_rf)
+#
+# print(f"Random Forest Regressor MAE: {mae_rf}")
+# print(f"Random Forest Regressor R2 Score: {r2_rf}")
+
+
 # Initialize and train a Decision Tree Regressor
 dt_regressor = DecisionTreeRegressor(random_state=42)
 dt_regressor.fit(X_train, y_train)
 
-# Initialize and train a Random Forest Regressor
-rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_regressor.fit(X_train, y_train)
-print('That 154 line executed')
+# Evaluate the Decision Tree Regressor
+y_pred_dt = dt_regressor.predict(X_test)
+mae_dt = mean_absolute_error(y_test, y_pred_dt)
+r2_dt = r2_score(y_test, y_pred_dt)
+
+print(f"Decision Tree Regressor MAE: {mae_dt}")
+print(f"Decision Tree Regressor R2 Score: {r2_dt}")
+
+
 
 
 # Function to extract URLs from text using urlextract
@@ -69,6 +174,33 @@ def extract_github_urls(text):
     print('Extract Github url complete:', github_urls)
     return github_urls
 
+
+# def extract_languages_from_cv(text):
+#     programming_languages = ['Python', 'Java', 'C++', 'JavaScript', 'Ruby', 'PHP', 'C#', 'Swift', 'Go', 'R', 'Kotlin']
+#     cv_languages = []
+#     tokens = word_tokenize(text)
+#     for token in tokens:
+#         if token in programming_languages:
+#             cv_languages.append(token)
+#     return cv_languages
+
+def extract_languages_from_cv(text):
+    programming_languages = {'Python', 'Java', 'C++', 'JavaScript', 'Ruby', 'PHP', 'C#', 'Swift', 'Go', 'R', 'Kotlin'}
+    cv_languages = set()
+    tokens = word_tokenize(text)
+    for token in tokens:
+        if token in programming_languages:
+            cv_languages.add(token)
+    return list(cv_languages)
+
+
+def check_similarity(cv_languages, github_languages):
+    print('This similarity checking function is working')
+    similarity_score = 0
+    for lang in cv_languages:
+        if lang in github_languages:  # and github_languages[lang] > 50
+            similarity_score += 1
+    return similarity_score
 
 
 def scrape_github_contributions(username):
@@ -201,7 +333,8 @@ def predict(data):
 
     # Make predictions using the models
     predicted_score_dt = dt_regressor.predict(new_data)
-    predicted_score_rf = rf_regressor.predict(new_data)
+    #predicted_score_rf = rf_regressor.predict(new_data)
+    predicted_score_rf = best_model.predict(new_data)
 
     # print('Predicted Score (Decision Tree):', predicted_score_dt[0])
     # print('Predicted Score (Random Forest):', predicted_score_rf[0])
@@ -224,11 +357,11 @@ def get_user_data(username, token):
         if response.status_code == 200:
             print('GET request successful!')
         else:
-            print(f'GET request failed with status code {response.status_code}')
-        #print('that line work')
+            print(f'GET request failed with status code {response.status_code}. User Profile can not found')
+        # print('that line work')
         # print(response.json())
         profile_data = response.json()
-        #print(profile_data['bio'])
+        # print(profile_data['bio'])
         # for key, value in profile_data.items():
         # print(f"{key}: {value}")
     except Exception as e1:
@@ -298,7 +431,7 @@ def get_user_data(username, token):
         'PHP': language_average_dict.get('PHP', 0),
         'Go': language_average_dict.get('Go', 0),
     }
-    print('my dict',my_dict)
+    print('my dict', my_dict)
     return my_dict
 
 
@@ -330,12 +463,14 @@ def upload_file():
                 for page in pdf_reader.pages:
                     pdf_text += page.extract_text()
 
-            print(pdf_text)
+            # print(pdf_text)
             # Extract URLs from the text
             urls = extract_urls(pdf_text)
             # print(f"urls Extracted:{urls}")
             github_urls = extract_github_urls(pdf_text)
             print(f"github url :{github_urls}")
+            extracted_Lang_cv = extract_languages_from_cv(pdf_text)
+            print('extracted language cv', extracted_Lang_cv)
             # Check if there are any GitHub URLs to process
             if not github_urls:
                 return "Cannot extract GitHub URL"
@@ -354,7 +489,7 @@ def upload_file():
                 else:
                     usernames.append("Username not found")
 
-            #github_token = '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'
+            # github_token = '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'
             github_token = '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'
 
             for username in usernames:
@@ -362,8 +497,15 @@ def upload_file():
                 user_data = get_user_data(username, github_token)
 
             values = predict(user_data)
-            #print(values[0])
-            #print('suitable stack', values[3])
+            # Remove specific keys in one line
+            [user_data.pop(key, None) for key in
+             ['username', 'bio', 'public_repos', 'public_gists', 'followers', 'following', 'repos_count',
+              'contribution']]
+            print('updated_user_data', user_data)
+            similarity_score = check_similarity(extracted_Lang_cv, user_data)
+            print('similarity_score', similarity_score)
+            # print(values[0])
+            # print('suitable stack', values[3])
             print('Succefull Complete Last Function:', username, values)
             return render_template('urls.html', username=username, predicted_score_dt=values[0],
                                    predicted_score_rf=values[1], user_preference=values[2], suitable_stack=values[3])
