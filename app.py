@@ -86,7 +86,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 
 # Define Hyperparameter Space
-param_space = {
+param_space_rf = {
     'n_estimators': Integer(100, 300),
     'max_depth': Integer(10, 30),
     'min_samples_split': Integer(2, 11),
@@ -97,7 +97,7 @@ param_space = {
 rf_rf = RandomForestRegressor(random_state=42)
 
 # Initialize and Fit BayesSearchCV
-bayes_search = BayesSearchCV(estimator=rf_rf, search_spaces=param_space, n_iter=50, cv=3, n_jobs=-1, verbose=2, random_state=42)
+bayes_search = BayesSearchCV(estimator=rf_rf, search_spaces=param_space_rf, n_iter=50, cv=3, n_jobs=-1, verbose=2, random_state=42)
 bayes_search.fit(X_train, y_train)
 
 # Get best parameters and train final model
@@ -105,7 +105,7 @@ best_params = bayes_search.best_params_
 print("Best parameters found: ", best_params)
 
 # Use the best estimator from BayesSearchCV directly
-best_model = bayes_search.best_estimator_
+best_rf_model = bayes_search.best_estimator_
 
 # Check if the model is fitted
 def is_model_fitted(model):
@@ -115,16 +115,16 @@ def is_model_fitted(model):
     except:
         return False
 
-print(is_model_fitted(best_model))  # True, because the model is now fitted
+print(is_model_fitted(best_rf_model))  # True, because the model is now fitted
 # Evaluate the model
-if is_model_fitted(best_model):
-    y_pred_rf = best_model.predict(X_test)
+if is_model_fitted(best_rf_model):
+    y_pred_rf = best_rf_model.predict(X_test)
     mae_rf = mean_absolute_error(y_test, y_pred_rf)
     r2_rf = r2_score(y_test, y_pred_rf)
     print(f"Random Forest Regressor MAE: {mae_rf}")
     print(f"Random Forest Regressor R2 Score: {r2_rf}")
 else:
-    print("Model is not fitted yet.")
+    print("RF_Model is not fitted yet.")
 
 
 print('That 154 line executed')
@@ -140,21 +140,38 @@ print(y_test)
 # print(f"Random Forest Regressor MAE: {mae_rf}")
 # print(f"Random Forest Regressor R2 Score: {r2_rf}")
 
+# Define the parameter space
+param_space_dt = {
+    'max_depth': Integer(10, 50),
+    'min_samples_split': Integer(2, 10),
+    'min_samples_leaf': Integer(1, 10)
+}
 
 # Initialize and train a Decision Tree Regressor
 dt_regressor = DecisionTreeRegressor(random_state=42)
-dt_regressor.fit(X_train, y_train)
 
-# Evaluate the Decision Tree Regressor
-y_pred_dt = dt_regressor.predict(X_test)
-mae_dt = mean_absolute_error(y_test, y_pred_dt)
-r2_dt = r2_score(y_test, y_pred_dt)
+# Initialize BayesSearchCV
+bayes_search = BayesSearchCV(estimator=dt_regressor, search_spaces=param_space_dt, n_iter=50, cv=3, n_jobs=-1, verbose=2, random_state=42)
+bayes_search.fit(X_train, y_train)
 
-print(f"Decision Tree Regressor MAE: {mae_dt}")
-print(f"Decision Tree Regressor R2 Score: {r2_dt}")
+# Get the best parameters
+best_params = bayes_search.best_params_
+print("Best parameters found: ", best_params)
 
+# Evaluate the model
+best_dt_model = bayes_search.best_estimator_
 
+print(is_model_fitted(best_dt_model))  # True, because the model is now fitted
 
+if is_model_fitted(best_dt_model):
+    # Evaluate the model
+    y_pred_dt = best_dt_model.predict(X_test)
+    mae_dt = mean_absolute_error(y_test, y_pred_dt)
+    r2_dt = r2_score(y_test, y_pred_dt)
+    print(f"Decision Tree Regressor MAE: {mae_dt}")
+    print(f"Decision Tree Regressor R2 Score: {r2_dt}")
+else:
+    print("DT_Model is not fitted yet.")
 
 # Function to extract URLs from text using urlextract
 def extract_urls(text):
@@ -332,9 +349,9 @@ def predict(data):
         })
 
     # Make predictions using the models
-    predicted_score_dt = dt_regressor.predict(new_data)
+    predicted_score_dt = best_dt_model.predict(new_data)
     #predicted_score_rf = rf_regressor.predict(new_data)
-    predicted_score_rf = best_model.predict(new_data)
+    predicted_score_rf = best_rf_model.predict(new_data)
 
     # print('Predicted Score (Decision Tree):', predicted_score_dt[0])
     # print('Predicted Score (Random Forest):', predicted_score_rf[0])
