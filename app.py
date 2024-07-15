@@ -21,91 +21,49 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.utils.validation import check_is_fitted
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer
+from collections import defaultdict
+import spacy
+# Load spaCy model
+nlp = spacy.load('en_core_web_sm')
 
 app = Flask(__name__)
 
 # Configure the upload folder
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-print('That 28 line executed')
 
 # Download required NLTK data files
 nltk.download('punkt')
-print('That 22 line executed')
 
 # Load the CSV file into a DataFrame
-# df = pd.read_csv('labeledDataSet.csv')
-df = pd.read_csv('Formatted_Data1.csv')
-print('That 65 line executed now')
+df = pd.read_csv('finalist.csv')
 
 # Separate features (X) and target variable (y)
 X = df.drop(['username', 'industry_score'], axis=1)
 y = df['industry_score']
-print('That 142 line executed')
 
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# # Define Hyperparameter Grid
-# param_grid = {
-#     'n_estimators': [100, 200, 300, 400, 500],
-#     'max_depth': [10, 20, 30, 40, 50, None],
-#     'min_samples_split': [2, 5, 10],
-#     'min_samples_leaf': [1, 2, 4]
-# }
-# # Initialize and train a Random Forest Regressor
-# rf_regressor = RandomForestRegressor(random_state=42)    #n_estimators=100, random_state=42
-# #rf_regressor.fit(X_train, y_train)
-# # Initialize GridSearchCV
-# grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2)
-# # Fit GridSearchCV
-# grid_search.fit(X_train, y_train)
-# # Get best parameters
-# best_params = grid_search.best_params_
-# print("Best parameters found: ", best_params)
-# # Train final model with best parameters
-# final_model = RandomForestRegressor(**best_params, random_state=42)
-# final_model.fit(X_train, y_train)
-# # Check if the model is fitted
-# def is_model_fitted(model):
-#     try:
-#         check_is_fitted(model)
-#         return True
-#     except:
-#         return False
-# print(is_model_fitted(final_model))  # True, because the model is now fitted
-# # Evaluate the model
-# if is_model_fitted(final_model):
-#     y_pred_rf = final_model.predict(X_test)
-#     mae_rf = mean_absolute_error(y_test, y_pred_rf)
-#     r2_rf = r2_score(y_test, y_pred_rf)
-#     print(f"Random Forest Regressor MAE: {mae_rf}")
-#     print(f"Random Forest Regressor R2 Score: {r2_rf}")
-# else:
-#     print("Model is not fitted yet.")
-
-
 # Define Hyperparameter Space
 param_space_rf = {
-    'n_estimators': Integer(100, 300),
-    'max_depth': Integer(10, 30),
+    'n_estimators': Integer(100, 150),
+    'max_depth': Integer(10, 20),
     'min_samples_split': Integer(2, 11),
     'min_samples_leaf': Integer(1, 11)
 }
-
 # Initialize RandomForestRegressor
 rf_rf = RandomForestRegressor(random_state=42)
-
 # Initialize and Fit BayesSearchCV
-bayes_search = BayesSearchCV(estimator=rf_rf, search_spaces=param_space_rf, n_iter=50, cv=3, n_jobs=-1, verbose=2, random_state=42)
+bayes_search = BayesSearchCV(estimator=rf_rf, search_spaces=param_space_rf, n_iter=50, cv=3, n_jobs=-1, verbose=2,
+                             random_state=42)
 bayes_search.fit(X_train, y_train)
-
-# Get best parameters and train final model
+# Get the best parameters and train final model
 best_params = bayes_search.best_params_
-print("Best parameters found: ", best_params)
-
+print("Best parameters found for Random Forest:\n ", best_params)
 # Use the best estimator from BayesSearchCV directly
 best_rf_model = bayes_search.best_estimator_
+
 
 # Check if the model is fitted
 def is_model_fitted(model):
@@ -115,30 +73,18 @@ def is_model_fitted(model):
     except:
         return False
 
+
 print(is_model_fitted(best_rf_model))  # True, because the model is now fitted
 # Evaluate the model
 if is_model_fitted(best_rf_model):
+    # Evaluate the Random Forest Model
     y_pred_rf = best_rf_model.predict(X_test)
     mae_rf = mean_absolute_error(y_test, y_pred_rf)
     r2_rf = r2_score(y_test, y_pred_rf)
-    print(f"Random Forest Regressor MAE: {mae_rf}")
-    print(f"Random Forest Regressor R2 Score: {r2_rf}")
+    print(f"(Random Forest) Mean Absolute Error : {mae_rf}")
+    print(f"(Random Forest) R2 Score: {r2_rf}")
 else:
     print("RF_Model is not fitted yet.")
-
-
-print('That 154 line executed')
-print(X_test)
-print(y_test)
-
-# Evaluate the Random Forest Regressor
-#y_pred_rf = rf_regressor.predict(X_test)
-# y_pred_rf = final_model.predict(X_test)
-# mae_rf = mean_absolute_error(y_test, y_pred_rf)
-# r2_rf = r2_score(y_test, y_pred_rf)
-#
-# print(f"Random Forest Regressor MAE: {mae_rf}")
-# print(f"Random Forest Regressor R2 Score: {r2_rf}")
 
 # Define the parameter space
 param_space_dt = {
@@ -151,12 +97,13 @@ param_space_dt = {
 dt_regressor = DecisionTreeRegressor(random_state=42)
 
 # Initialize BayesSearchCV
-bayes_search = BayesSearchCV(estimator=dt_regressor, search_spaces=param_space_dt, n_iter=50, cv=3, n_jobs=-1, verbose=2, random_state=42)
+bayes_search = BayesSearchCV(estimator=dt_regressor, search_spaces=param_space_dt, n_iter=50, cv=3, n_jobs=-1,
+                             verbose=2, random_state=42)
 bayes_search.fit(X_train, y_train)
 
 # Get the best parameters
 best_params = bayes_search.best_params_
-print("Best parameters found: ", best_params)
+print("Best parameters found for Decision Tree: \n", best_params)
 
 # Evaluate the model
 best_dt_model = bayes_search.best_estimator_
@@ -164,7 +111,7 @@ best_dt_model = bayes_search.best_estimator_
 print(is_model_fitted(best_dt_model))  # True, because the model is now fitted
 
 if is_model_fitted(best_dt_model):
-    # Evaluate the model
+    # Evaluate Decision Tree module
     y_pred_dt = best_dt_model.predict(X_test)
     mae_dt = mean_absolute_error(y_test, y_pred_dt)
     r2_dt = r2_score(y_test, y_pred_dt)
@@ -172,6 +119,7 @@ if is_model_fitted(best_dt_model):
     print(f"Decision Tree Regressor R2 Score: {r2_dt}")
 else:
     print("DT_Model is not fitted yet.")
+
 
 # Function to extract URLs from text using urlextract
 def extract_urls(text):
@@ -184,7 +132,6 @@ def extract_urls(text):
 def extract_github_urls(text):
     # Regular expression pattern to match GitHub URLs
     # pattern = r'(https?://github\.com/[^\s]+)'
-    # pattern = r'\b(?:https?://)?github\.com/\w+'
     # pattern = r'\b(?:https?://github\.com/|github\.com/)\w+'
     pattern = r'\b(?:https?://|http://|www\.)?github\.com/\w+'
     github_urls = re.findall(pattern, text)
@@ -192,23 +139,26 @@ def extract_github_urls(text):
     return github_urls
 
 
-# def extract_languages_from_cv(text):
-#     programming_languages = ['Python', 'Java', 'C++', 'JavaScript', 'Ruby', 'PHP', 'C#', 'Swift', 'Go', 'R', 'Kotlin']
-#     cv_languages = []
-#     tokens = word_tokenize(text)
-#     for token in tokens:
-#         if token in programming_languages:
-#             cv_languages.append(token)
-#     return cv_languages
-
 def extract_languages_from_cv(text):
     programming_languages = {'Python', 'Java', 'C++', 'JavaScript', 'Ruby', 'PHP', 'C#', 'Swift', 'Go', 'R', 'Kotlin'}
-    cv_languages = set()
-    tokens = word_tokenize(text)
-    for token in tokens:
-        if token in programming_languages:
-            cv_languages.add(token)
-    return list(cv_languages)
+    language_counts = defaultdict(int)
+
+    # Clean the text
+    text = re.sub(r'[^\w\s#]', '', text)  # Remove punctuation except for # in C#
+
+    # Use spaCy to process the text
+    doc = nlp(text)
+    # print(f"Tokens: {[token.text for token in doc]}")  # Debugging print statement
+
+    # Count each programming language occurrence
+    for token in doc:
+        # Normalize token capitalization
+        normalized_token = token.text.capitalize() if token.text.lower() != 'c#' else 'C#'
+        if normalized_token in programming_languages:
+            language_counts[normalized_token] += 1
+
+    print(f"Language Counts: {language_counts}")  # Debugging print statement
+    return dict(language_counts)
 
 
 def check_similarity(cv_languages, github_languages):
@@ -284,12 +234,9 @@ def check_more_toward_stack(data):
     print('Check More Toward Stack Complete')
     new_data = {key: value for key, value in data.items() if
                 key not in ['public_repos', 'public_gists', 'followers', 'following', 'repos_count', 'contribution']}
-    # Print the new dictionary
-    # print(new_data)
     # Define sets of frontend and backend technologies
     frontend_technologies = {'JavaScript', 'HTML', 'CSS', 'TypeScript', 'Dart'}
     backend_technologies = {'Java', 'Python', 'C++', 'C#', 'PHP', 'Go', 'Kotlin', 'C'}
-
     # Initialize sum variables
     frontend_sum = 0.0
     backend_sum = 0.0
@@ -318,46 +265,16 @@ def predict(data):
         user_bio = data['bio']
         data.pop('username', None)
         data.pop('bio', None)
-        # data.pop('contribution', None)
         suitable_stack = check_more_toward_stack(data)
-        # Data is sent from frontend, process it and make predictions
-        # data = request.json  # Assuming JSON data is sent from frontend
         new_data = pd.DataFrame([data])
     else:
         # No data sent, use default data for testing purposes
-        print("This is dummy data")
-        new_data = pd.DataFrame({
-            'public_repos': [79],
-            'public_gists': [72],
-            'followers': [42],
-            'following': [3],
-            'repos_count': [30],
-            'contribution': [100],
-            'JavaScript': [44],
-            'Java': [1],
-            'HTML': [37],
-            'CSS': [13],
-            'C': [0],
-            'Python': [11],
-            'C++': [0],
-            'TypeScript': [56],
-            'C#': [5],
-            'Dart': [0],
-            'Kotlin': [0],
-            'PHP': [35],
-            'Go': [13]
-        })
+        print("Data Not Received")
 
     # Make predictions using the models
     predicted_score_dt = best_dt_model.predict(new_data)
-    #predicted_score_rf = rf_regressor.predict(new_data)
     predicted_score_rf = best_rf_model.predict(new_data)
 
-    # print('Predicted Score (Decision Tree):', predicted_score_dt[0])
-    # print('Predicted Score (Random Forest):', predicted_score_rf[0])
-
-    # Render index.html template with predicted scores
-    # return render_template('index.html', predicted_score_dt=predicted_score_dt[0], predicted_score_rf=predicted_score_rf[0])
     predicted_score_dt = predicted_score_dt[0]
     predicted_score_rf = predicted_score_rf[0]
     user_preference = check_passion(user_bio)
@@ -375,12 +292,7 @@ def get_user_data(username, token):
             print('GET request successful!')
         else:
             print(f'GET request failed with status code {response.status_code}. User Profile can not found')
-        # print('that line work')
-        # print(response.json())
         profile_data = response.json()
-        # print(profile_data['bio'])
-        # for key, value in profile_data.items():
-        # print(f"{key}: {value}")
     except Exception as e1:
         print(f"An unexpected error occured when fetching profile data : {e1}")
 
@@ -454,82 +366,88 @@ def get_user_data(username, token):
 
 @app.route('/')
 def home():
-    return render_template('upload.html')
+    return render_template('upload1.html')
 
 
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route('/upload1', methods=['GET', 'POST'])
 def upload_file():
     try:
-        if 'file' not in request.files:
+        if 'files' not in request.files:
             return "No file part"
 
-        file = request.files['file']
+        files = request.files.getlist('files')
 
-        if file.filename == '':
-            return "No selected file"
+        if not files or files[0].filename == '':
+            return "No selected files"
 
-        if file and file.filename.endswith('.pdf'):
-            # Save the uploaded PDF file
-            filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(filename)
+        results = []
 
-            # Extract text content from the PDF
-            pdf_text = ""
-            with open(filename, 'rb') as pdf_file:
-                pdf_reader = PdfReader(pdf_file)
-                for page in pdf_reader.pages:
-                    pdf_text += page.extract_text()
+        for file in files:
+            if file and file.filename.endswith('.pdf'):
+                # Save the uploaded PDF file
+                filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+                file.save(filename)
 
-            # print(pdf_text)
-            # Extract URLs from the text
-            urls = extract_urls(pdf_text)
-            # print(f"urls Extracted:{urls}")
-            github_urls = extract_github_urls(pdf_text)
-            print(f"github url :{github_urls}")
-            extracted_Lang_cv = extract_languages_from_cv(pdf_text)
-            print('extracted language cv', extracted_Lang_cv)
-            # Check if there are any GitHub URLs to process
-            if not github_urls:
-                return "Cannot extract GitHub URL"
+                # Extract text content from the PDF
+                pdf_text = ""
+                with open(filename, 'rb') as pdf_file:
+                    pdf_reader = PdfReader(pdf_file)
+                    for page in pdf_reader.pages:
+                        pdf_text += page.extract_text()
 
-            # Initialize an empty list to store extracted usernames
-            usernames = []
+                # Extract URLs from the text
+                urls = extract_urls(pdf_text)
+                github_urls = extract_github_urls(pdf_text)
+                print(f"github url :{github_urls}")
+                extracted_lang_cv = extract_languages_from_cv(pdf_text)
+                print('extracted language cv', extracted_lang_cv)
+                # Check if there are any GitHub URLs to process
+                if not github_urls:
+                    return "Cannot extract GitHub URL"
 
-            # Define the regex pattern outside the loop for better performance
-            pattern = r'github\.com/(\w+)'
+                # Initialize an empty list to store extracted usernames
+                usernames = []
 
-            for url in github_urls:
-                match = re.search(pattern, url)
-                if match:
-                    username = match.group(1)
-                    usernames.append(username)
-                else:
-                    usernames.append("Username not found")
+                # Define the regex pattern outside the loop for better performance
+                pattern = r'github\.com/(\w+)'
 
-            # github_token = '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'
-            github_token = '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'
+                for url in github_urls:
+                    match = re.search(pattern, url)
+                    if match:
+                        username = match.group(1)
+                        usernames.append(username)
+                    else:
+                        usernames.append("Username not found")
 
-            for username in usernames:
-                print(username)
-                user_data = get_user_data(username, github_token)
+                # github_token = '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'
+                github_token = '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'
 
-            values = predict(user_data)
-            # Remove specific keys in one line
-            [user_data.pop(key, None) for key in
-             ['username', 'bio', 'public_repos', 'public_gists', 'followers', 'following', 'repos_count',
-              'contribution']]
-            print('updated_user_data', user_data)
-            similarity_score = check_similarity(extracted_Lang_cv, user_data)
-            print('similarity_score', similarity_score)
-            # print(values[0])
-            # print('suitable stack', values[3])
-            print('Succefull Complete Last Function:', username, values)
-            return render_template('urls.html', username=username, predicted_score_dt=values[0],
-                                   predicted_score_rf=values[1], user_preference=values[2], suitable_stack=values[3])
-        else:
-            return "Invalid file format. Please upload a PDF file."
+                for username in usernames:
+                    print(username)
+                    user_data = get_user_data(username, github_token)
+
+                values = predict(user_data)
+                # Remove specific keys in one line
+                [user_data.pop(key, None) for key in
+                 ['username', 'bio', 'public_repos', 'public_gists', 'followers', 'following', 'repos_count',
+                  'contribution']]
+                print('updated_user_data', user_data)
+                # similarity_score = check_similarity(extracted_Lang_cv, user_data)
+                print('Succefull Complete Last Function:', username, values)
+                # Store the results for each file
+                results.append({
+                    'filename': file.filename,
+                    'username': username,
+                    'predicted_score_dt': values[0],
+                    'predicted_score_rf': values[1],
+                    'user_preference': values[2],
+                    'suitable_stack': values[3]
+                })
+
+        print('result', results)
+        return render_template('result.html',results=results)
     except Exception as e:
-        return f"An error occurred: {e}"
+        return f"An error occurred:{e}"
 
 
 if __name__ == '__main__':
